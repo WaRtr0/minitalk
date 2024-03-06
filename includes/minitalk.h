@@ -6,7 +6,7 @@
 /*   By: mmorot <mmorot@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/03 05:20:47 by mmorot            #+#    #+#             */
-/*   Updated: 2024/03/06 03:42:28 by mmorot           ###   ########.fr       */
+/*   Updated: 2024/03/06 06:32:13 by mmorot           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,9 +45,11 @@ typedef	struct s_state_receive {
 	unsigned int	count;
 }	t_state_receive;
 
-unsigned char *dec_to_binary(unsigned int dec, unsigned char bits);
+unsigned char	*dec_to_binary(unsigned int dec, unsigned char bits);
 unsigned int    binary_to_dec(unsigned char *binary, unsigned char bits);
 
 int             ft_atoi(const char *str);
+size_t			ft_strlen(char *str);
+void			ft_putnbr(int n);
 
 #endif

@@ -6,28 +6,11 @@
 /*   By: mmorot <mmorot@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/03 01:32:39 by mmorot            #+#    #+#             */
-/*   Updated: 2024/03/06 03:06:33 by mmorot           ###   ########.fr       */
+/*   Updated: 2024/03/06 06:33:18 by mmorot           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minitalk.h"
-#include <bits/types/siginfo_t.h>
-#include <bits/types/sigset_t.h>
-#include <signal.h>
-#include <stdio.h>
-#include <unistd.h>
-
-void	ft_putnbr(int n)
-{
-	if (n < 0)
-	{
-		write(1, "-", 1);
-		n = -n;
-	}
-	if (n > 9)
-		ft_putnbr(n / 10);
-	write(1, &"0123456789"[n % 10], 1);
-}
 
 void	get_len(t_bool sig, t_listen *listen)
 {
@@ -73,19 +56,23 @@ void	get_message(t_bool sig, t_listen *listen)
 	{
 		listen->message = malloc(sizeof(unsigned char) * (listen->len + 1));
 		if (!listen->message)
+		{
+			write(2, "Error Malloc\n", 13);
 			exit(1);
+		}
 	}
 	get_letter(sig, listen);
 }
 
-void    signal_handler(int  signum, siginfo_t *info, void *context )
+void	signal_handler(int signum, siginfo_t *info, void *context)
 {
-	static t_listen listen = {0};
+	static t_listen	listen = {0};
 	t_bool			sig;
 
+	(void)context;
 	if (listen.pid == 0)
 		listen.pid = info->si_pid;
-	if(info->si_pid && listen.pid == info->si_pid)
+	if (info->si_pid && listen.pid == info->si_pid)
 	{
 		if (signum == SIGUSR1)
 			sig = 1;
@@ -99,20 +86,20 @@ void    signal_handler(int  signum, siginfo_t *info, void *context )
 			get_message(sig, &listen);
 		kill(info->si_pid, SIGUSR1);
 	}
-	else if(info->si_pid)
+	else if (info->si_pid)
 		kill(info->si_pid, SIGUSR2);
 }
 
-int main(void)
+int	main(void)
 {
-	struct sigaction sa;
+	struct sigaction	sa;
+
 	sa.sa_sigaction = signal_handler;
 	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_SIGINFO; 
-
+	sa.sa_flags = SA_SIGINFO;
 	sigaction(SIGUSR1, &sa, NULL);
 	sigaction(SIGUSR2, &sa, NULL);
-	write(1,"\x1b[33m=============================\x1b[0m\n",40);
+	write(1, "\x1b[33m=============================\x1b[0m\n", 40);
 	write(1, "PID   : \x1b[34m", 14);
 	ft_putnbr(getpid());
 	write(1, "\x1b[0m\n", 5);
