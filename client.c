@@ -6,7 +6,7 @@
 /*   By: mmorot <mmorot@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/03 01:32:36 by mmorot            #+#    #+#             */
-/*   Updated: 2024/03/06 03:44:45 by mmorot           ###   ########.fr       */
+/*   Updated: 2024/03/06 05:45:12 by mmorot           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,22 +14,21 @@
 #include <stdio.h>
 #include <unistd.h>
 
-static  t_state_receive server;
+static  t_state_receive g_server;
 
 void    send_dec(int pid, unsigned int dec)
 {
-    unsigned char i;
+    unsigned char   i;
 
     i = 0;
     while (i < 32)
     {
-        server.receive = 0;
+        g_server.receive = 0;
         if (dec & 1 << (31 - i))
             kill(pid, SIGUSR1);
         else
             kill(pid, SIGUSR2);
-
-        while (!server.receive)
+        while (!g_server.receive)
             usleep(5);
         i++;
     }
@@ -37,17 +36,17 @@ void    send_dec(int pid, unsigned int dec)
 
 void    send_char(int pid, unsigned char c)
 {
-    unsigned char i;
+    unsigned char   i;
 
     i = 0;
     while (i < 8)
     {
-        server.receive = 0;
+        g_server.receive = 0;
         if (c & 1 << (7 - i))
             kill(pid, SIGUSR1);
         else
             kill(pid, SIGUSR2);
-        while (!server.receive)
+        while (!g_server.receive)
             usleep(5);
         i++;
     }
@@ -68,46 +67,43 @@ void    send_message(char *message)
     size_t  len;
 
     len = ft_strlen(message);
-    server.count = 0;
-    server.seconds = 50;
-    while (!server.available)
-    {
-        if (server.count == 2)
-        {
-            printf("Le serveur est actuellement occuper...\n...Veuillez patienter...\n");
-            server.seconds = 500000;
-        }
-        usleep(server.seconds);
-        kill(server.pid, SIGUSR2);
-        server.count++;
-    }
-    send_dec(server.pid, len);
+    g_server.count = 0;
+    g_server.seconds = 50;
+    kill(g_server.pid, SIGUSR2);
+    while (!g_server.receive && ++g_server.count && g_server.count < 10000)
+        usleep(5);
+    if (!g_server.available)
+        write(1, "Le serveur est actuellement occupe",36);
+    send_dec(g_server.pid, len);
     while (*message)
     {
-        send_char(server.pid, *message);
+        send_char(g_server.pid, *message);
         message++;
     }
-    while (!server.receive)
+    while (!g_server.receive)
         usleep(5);
     printf("Votre message a bien ete recu\n");
 }
 
 void    signal_handler(int  signum, siginfo_t *info, void *context )
 {
-    if (signum == SIGUSR1 && info->si_pid && info->si_pid == server.pid)
+    if (signum == SIGUSR1 && info->si_pid && info->si_pid == g_server.pid)
     {
-        server.receive = 1;
-        server.available = 1;
+        g_server.receive = 1;
+        g_server.available = 1;
     }
     else
-        server.available = 0;
+    {
+        printf("Le serveur est actuellement occupe veuillez envoye votre message plus tard\n");
+        exit(0);
+    }
 }
 
 int main(int ac, char **argv)
 {
     struct sigaction sa;
-    server.available = 0;
-    server.receive = 0;
+    g_server.available = 0;
+    g_server.receive = 0;
 	sa.sa_sigaction = signal_handler;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_SIGINFO; 
@@ -119,8 +115,8 @@ int main(int ac, char **argv)
         return (1);
     }
 
-    server.pid = ft_atoi(argv[1]);
-    if (server.pid < 1)
+    g_server.pid = ft_atoi(argv[1]);
+    if (g_server.pid < 1)
         exit(-1);
     send_message(argv[2]);
     return (0);
