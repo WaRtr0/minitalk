@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   minitalk.h                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mmorot <mmorot@student.42.frmmorot>        +#+  +:+       +#+        */
+/*   By: mmorot <mmorot@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/03 05:20:47 by mmorot            #+#    #+#             */
-/*   Updated: 2024/03/03 05:23:22 by mmorot           ###   ########.fr       */
+/*   Updated: 2024/03/06 03:42:28 by mmorot           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,12 +18,14 @@
 # include <signal.h>
 # include <stdlib.h>
 # include <stddef.h>
+# include <stdint.h>
 
 
 
 // status == (0, 1, 2) == (PENDING, STARTING, COMPLETE)
 
 typedef struct s_listen {
+	pid_t			pid;
 	unsigned char	status;
 	unsigned char	octet;
 	unsigned char	bit;
@@ -33,7 +35,15 @@ typedef struct s_listen {
 	char			*message;
 }   t_listen;
 
-typedef unsigned char t_bool;
+typedef uint8_t t_bool;
+
+typedef	struct s_state_receive {
+	pid_t			pid;
+	t_bool			receive;
+	t_bool  		available;
+	useconds_t		seconds;
+	unsigned int	count;
+}	t_state_receive;
 
 unsigned char *dec_to_binary(unsigned int dec, unsigned char bits);
 unsigned int    binary_to_dec(unsigned char *binary, unsigned char bits);

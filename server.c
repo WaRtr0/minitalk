@@ -3,14 +3,19 @@
 /*                                                        :::      ::::::::   */
 /*   server.c                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mmorot <mmorot@student.42.frmmorot>        +#+  +:+       +#+        */
+/*   By: mmorot <mmorot@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/03 01:32:39 by mmorot            #+#    #+#             */
-/*   Updated: 2024/03/03 18:11:50 by mmorot           ###   ########.fr       */
+/*   Updated: 2024/03/06 03:06:33 by mmorot           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "minitalk.h"
+#include <bits/types/siginfo_t.h>
+#include <bits/types/sigset_t.h>
+#include <signal.h>
+#include <stdio.h>
+#include <unistd.h>
 
 void	ft_putnbr(int n)
 {
@@ -57,6 +62,7 @@ void	get_letter(t_bool sig, t_listen *listen)
 		listen->message = NULL;
 		listen->status = 0;
 		listen->len = 0;
+		listen->pid = 0;
 		listen->index = 0;
 	}
 }
@@ -72,27 +78,40 @@ void	get_message(t_bool sig, t_listen *listen)
 	get_letter(sig, listen);
 }
 
-void    signal_handler(int  signum)
+void    signal_handler(int  signum, siginfo_t *info, void *context )
 {
 	static t_listen listen = {0};
 	t_bool			sig;
-	if (signum == SIGUSR1)
-		sig = 1;
-	else
-		sig = 0;
-	
-	if (!listen.status && !sig)
-		listen.status = 1;
-	else if (listen.status == 1)
-		get_len(sig, &listen);
-	else if (listen.status == 2)
-		get_message(sig, &listen);
+
+	if (listen.pid == 0)
+		listen.pid = info->si_pid;
+	if(info->si_pid && listen.pid == info->si_pid)
+	{
+		if (signum == SIGUSR1)
+			sig = 1;
+		else
+			sig = 0;
+		if (!listen.status && !sig)
+			listen.status = 1;
+		else if (listen.status == 1)
+			get_len(sig, &listen);
+		else if (listen.status == 2)
+			get_message(sig, &listen);
+		kill(info->si_pid, SIGUSR1);
+	}
+	else if(info->si_pid)
+		kill(info->si_pid, SIGUSR2);
 }
 
 int main(void)
 {
-	signal(SIGUSR1, signal_handler);
-	signal(SIGUSR2, signal_handler);
+	struct sigaction sa;
+	sa.sa_sigaction = signal_handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_SIGINFO; 
+
+	sigaction(SIGUSR1, &sa, NULL);
+	sigaction(SIGUSR2, &sa, NULL);
 	write(1,"\x1b[33m=============================\x1b[0m\n",40);
 	write(1, "PID   : \x1b[34m", 14);
 	ft_putnbr(getpid());
@@ -102,6 +121,6 @@ int main(void)
 	write(1, "=----------\x1b[31mMessage\x1b[33m----------=\n", 41);
 	write(1, "=============================\x1b[0m\n", 35);
 	while (1)
-		usleep(50);
+		pause();
 	return (0);
 }
