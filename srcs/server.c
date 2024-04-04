@@ -1,0 +1,116 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   server.c                                           :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: mmorot <mmorot@student.42.fr>              +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2024/03/03 01:32:39 by mmorot            #+#    #+#             */
+/*   Updated: 2024/03/06 09:23:14 by mmorot           ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "minitalk.h"
+
+void	get_len(t_bool sig, t_listen *listen)
+{
+	listen->len |= sig << (31 - listen->len_bit);
+	listen->len_bit++;
+	if (listen->len_bit == 32)
+	{
+		listen->status = 2;
+		listen->len_bit = 0;
+	}
+}
+
+void	get_letter(t_bool sig, t_listen *listen)
+{
+	if (listen->bit < 8)
+	{
+		listen->octet |= sig << (7 - listen->bit);
+		listen->bit++;
+	}
+	if (listen->bit > 7)
+	{
+		listen->message[listen->index] = listen->octet;
+		listen->index++;
+		listen->octet = 0;
+		listen->bit = 0;
+	}
+	if (listen->index == listen->len)
+	{
+		listen->message[listen->index] = 0;
+		write(1, listen->message, listen->len + 1);
+		free(listen->message);
+		listen->message = NULL;
+		listen->status = 0;
+		listen->len = 0;
+		listen->pid = 0;
+		listen->index = 0;
+	}
+}
+
+void	get_message(t_bool sig, t_listen *listen)
+{
+	if (!listen->message)
+	{
+		listen->message = malloc(sizeof(unsigned char) * (listen->len + 1));
+		if (!listen->message)
+		{
+			write(2, "Error Malloc\n", 13);
+			exit(1);
+		}
+	}
+	get_letter(sig, listen);
+}
+
+void	signal_handler(int signum, siginfo_t *info, void *context)
+{
+	static t_listen	listen = {0};
+	t_bool			sig;
+
+	(void)context;
+	if (listen.pid == 0)
+		listen.pid = info->si_pid;
+	if (info->si_pid && listen.pid == info->si_pid)
+	{
+		if (signum == SIGUSR1)
+			sig = 1;
+		else
+			sig = 0;
+		if (!listen.status && !sig)
+			listen.status = 1;
+		else if (listen.status == 1)
+			get_len(sig, &listen);
+		else if (listen.status == 2)
+			get_message(sig, &listen);
+		kill(info->si_pid, SIGUSR1);
+	}
+	else if (info->si_pid)
+		kill(info->si_pid, SIGUSR2);
+}
+
+int	main(void)
+{
+	struct sigaction	sa;
+
+	sa.sa_sigaction = signal_handler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_SIGINFO;
+	if (!sigaction(SIGUSR1, &sa, NULL) && sigaction(SIGUSR2, &sa, NULL))
+	{
+		write(2, "Signal Error", 12);
+		exit(1);
+	}
+	write(1, "\x1b[33m=============================\x1b[0m\n", 40);
+	write(1, "PID   : \x1b[34m", 14);
+	ft_putnbr(getpid());
+	write(1, "\x1b[0m\n", 5);
+	write(1, "CMD   : ./client \x1b[34m<pid> \x1b[32m<text>\x1b[0m\n", 45);
+	write(1, "\x1b[33m=============================\n", 36);
+	write(1, "=----------\x1b[31mMessage\x1b[33m----------=\n", 41);
+	write(1, "=============================\x1b[0m\n", 35);
+	while (1)
+		pause();
+	return (0);
+}
